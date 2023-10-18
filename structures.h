@@ -16,8 +16,20 @@ struct Faculty{
         char password[50];
 };
 
+struct Course{
+        int code;
+        char name[256];
+        int enrolled;
+        int available;
+};
+
 
 struct faculty_count
+    {
+        int count;
+    };
+
+struct course_count
     {
         int count;
     };

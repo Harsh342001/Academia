@@ -8,8 +8,8 @@
 #include <sys/wait.h>
 #include "admin.h"
 #include "faculty.h"
-
-#define PORT 8080
+#include "student.h"
+// int port = 8000;
 #define MAX_CLIENTS 10
 
 
@@ -51,6 +51,7 @@ void handle_client(int client_socket) {
     // Handle the client connection here
     // You can read and write data from/to the client socket
     // Example: echo back received data
+    // while(1){
     char buffer[1024];
     ssize_t bytes_received;
     char login_roles[4096] = "<--------------------welcome to Academia :: Best platform for course registration ------------------------->\n"
@@ -61,14 +62,18 @@ void handle_client(int client_socket) {
 
     send(client_socket, login_roles, strlen(login_roles) , 0);
 
-    // char choice[2];
+    // char cho ice[2];
     // while(1){
          int choice_bytes = recv(client_socket, &buffer, sizeof(buffer),0);
          if(choice_bytes <= 0){
             printf("enter valid choice");
          }
         printf("choice entered by client: %s\n", buffer);
-
+        
+        // if(atoi(buffer) == 4){
+        //     break;
+        //     return;
+        // }
 
         // Echo the data back to the client
         // send(client_socket, buffer, bytes_received, 0);
@@ -79,16 +84,18 @@ void handle_client(int client_socket) {
         handle_admin(client_socket);
         break;
     case 2: printf("inplementation of Faculty");
-        // handle_faculty(client_socket);
+        handle_faculty_auth(client_socket);
         break;
     case 3: printf("inplementation of Student");
-        // handle_student();
+        handle_student_auth(client_socket);
         break;
     default : printf("Entered choice is invalid");
     }
 
 
     close(client_socket);
+    // }
+  
 }
 
 // void get_login(){
@@ -97,7 +104,7 @@ void handle_client(int client_socket) {
 
 
 
-int main() {
+int main(int argc , char* argv[]) {
     int server_socket, client_socket, addr_len;
     struct sockaddr_in server_addr, client_addr;
 
@@ -107,7 +114,7 @@ int main() {
     }
 
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(PORT);
+    server_addr.sin_port = htons(atoi(argv[1]));
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
     if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
@@ -120,7 +127,7 @@ int main() {
         exit(1);
     }
 
-    printf("Server listening on port %d...\n", PORT);
+    printf("Server listening on port %d...\n", atoi(argv[1]));
 
     while (1) {
         addr_len = sizeof(struct sockaddr_in);

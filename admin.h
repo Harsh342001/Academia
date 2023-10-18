@@ -15,21 +15,21 @@ void addFaculty(int client_socket){
     char response[1024];
     struct Faculty faculty;
 
-    int fd = open("faculty_data.txt", O_WRONLY| O_CREAT | O_APPEND);
+    int fd = open("faculty_data.txt", O_RDWR| O_CREAT | O_APPEND,0777);
     if(fd == -1){
         perror("Error opening file ");
         return;
     }
 
-     int fd = open("faculty_count.txt", O_RDWR| O_CREAT);
-    if(fd == -1){
+    int fd_c = open("faculty_count.txt", O_RDWR);
+    if(fd_c == -1){
         perror("Error opening file ");
         return;
     }
 
     struct faculty_count fc;
     
-    int r = read(fd , &fc, sizeof(fc));
+    int r = read(fd_c , &fc, sizeof(fc));
 
     if(r <= 0){
         perror("unable to read faculty count");
@@ -37,9 +37,16 @@ void addFaculty(int client_socket){
     }
     
     printf("read count of faculty is : %d \n", fc.count);
-    fc.count++;
+    fc.count = fc.count + 1;
     faculty.faculty_id = fc.count;
+    printf("new count to be written is : %d \n" , fc.count);
+    printf("%ld" , lseek(fd_c,0, SEEK_SET));
+    int w = write(fd_c , &fc, sizeof(fc));
 
+    if(w <= 0){
+        perror("unable to write faculty count");
+        return ;
+    }
 
     strcpy(buf , "Enter name : ");
     send_res = send(client_socket , buf , strlen(buf),0);
@@ -77,7 +84,7 @@ void addFaculty(int client_socket){
         perror("error occured adding student data to the file");
         return;
     }
-
+    printf("Data written to file \n");
 
 
 
@@ -88,7 +95,8 @@ void addFaculty(int client_socket){
 
 void viewFaculty(int clien_socket){
     struct Faculty faculty;  
-   
+    char buf[1024]; 
+    // sprintf(buf, "\n Faculty_name : %s \n Faculty_id: %d ",fd)
 
     int fd = open("faculty_data.txt", O_RDONLY);
     if(fd == -1){
@@ -97,8 +105,8 @@ void viewFaculty(int clien_socket){
     }
 
     while(read(fd , &faculty , sizeof(faculty)) > 0 ){
-        printf("name : %s \n",faculty.faculty_id );
-        printf("Roll no. %s \n" , faculty.name);
+        printf("faculty_id : %d \n",faculty.faculty_id );
+        printf("faculty_name. %s \n" , faculty.name);
         // printf("")
 
     }
@@ -115,12 +123,33 @@ void viewStudents(int clien_socket){
         return;
     }
 
-    while(read(fd , &sd , sizeof(sd)) > 0 ){
-        printf("name : %s \n",sd.name );
-        printf("Roll no. %s \n" , sd.rollno);
-        // printf("")
+    char rbuf[1024],wbuf[10000];
+        memset(rbuf, 0, sizeof(rbuf));
+        memset(wbuf, 0, sizeof(wbuf));
 
-    }
+        struct Course course;
+
+        while(read(fd, &sd, sizeof(sd))>0){
+                
+                char temp[1000];
+                sprintf(temp, "Student name : %s  \nUsername : %s \n\n\t***\n\n", sd.name,sd.username);
+                strcat(wbuf, temp);
+    
+        }
+
+        int writeBytes = write(clien_socket, wbuf, strlen(wbuf));
+        if (writeBytes == -1)
+        {
+                perror("Error writing course record info to client!");
+                return;
+        }
+
+    // while(read(fd , &sd , sizeof(sd)) > 0 ){
+    //     printf("name : %s \n",sd.name );
+    //     printf("Roll no. %s \n" , sd.rollno);
+    //     // printf("")
+
+    // }
 
 }
 
@@ -292,7 +321,7 @@ void editStudent(int client_socket){
 
 void send_menu(int client_socket){
         
-// while(1){
+while(1){
 
     char admin_menu[4096] = "1 . Add Student\n"
     "2 . Add Faculty\n"
@@ -314,9 +343,9 @@ void send_menu(int client_socket){
             printf("enter valid choice \n");
          }
          else{
-            // if(atoi(choice_buffer) == 7){
-            //     break;
-            // }
+            if(atoi(choice_buffer) == 7){
+                break;
+            }
             printf("choice entered by client: %s\n", choice_buffer);
             switch (atoi(choice_buffer))
             {
@@ -333,7 +362,7 @@ void send_menu(int client_socket){
                 // printf("add student called");
                 break;
             case 4:
-                viewStudents(client_socket);
+                viewFaculty(client_socket);
                 // printf("add student called");
                 break;
             case 6:
@@ -352,7 +381,7 @@ void send_menu(int client_socket){
     }
     
     
-// }
+}
     
 
 }

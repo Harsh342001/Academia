@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-int main() {
+int main(int argc , char* argv[]) {
     int client_socket;
     struct sockaddr_in server_address;
 
@@ -18,7 +18,7 @@ int main() {
     // Set up server address
     memset(&server_address, 0, sizeof(server_address));
     server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(8080); // Port number
+    server_address.sin_port = htons(atoi(argv[1])); // Port number
     server_address.sin_addr.s_addr = INADDR_ANY; // Replace with the actual IP of Machine 1
 
     // Connect to the server
