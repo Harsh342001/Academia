@@ -1,232 +1,561 @@
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>     
+#include<stdio.h>
+#include<fcntl.h>
+#include<unistd.h>
+#include<string.h>
+#include<stdlib.h>
+// #include "auth.h"
 
-// struct Faculty *faculty;
-  
-void addCourse(int client_socket , int faculty_fd){
-    // printf("faculty_Name : %s", faculty->name);
-    int send_res;
-    int recv_res;
-    char buf[1024];
-    char response[1024];
-    struct Course c;
+struct Faculty f;
 
-    int fd = open("courses_data.txt", O_RDWR| O_CREAT | O_APPEND,0777);
-    if(fd == -1){
-        perror("Error opening file ");
-        return;
-    }
+void addCourse(int cfd, int fid){
 
-    int fd_c = open("course_count.txt", O_RDWR);
-    if(fd_c == -1){
-        perror("Error opening file ");
-        return;
-    }
-
-    struct course_count cc;
-    
-    int r = read(fd_c , &cc, sizeof(cc));
-
-    if(r <= 0){
-        perror("unable to read course count");
-        return ;
-    }
-
-    // printf("faculty_Name : %s", faculty->name);
-    
-    printf("read count of course is : %d \n", cc.count);
-    cc.count = cc.count + 1;
-    c.code = cc.count;
-    printf("new count to be written is : %d \n" , cc.count);
-    printf("%ld \n" , lseek(fd_c,0, SEEK_SET));
-    int w = write(fd_c , &cc, sizeof(cc));
-
-    if(w <= 0){
-        perror("unable to write course count");
-        return ;
-    }
-
-    strcpy(buf , "Enter Course Name : ");
-    send_res = send(client_socket , buf , strlen(buf),0);
-    if(send_res <= 0){
-        perror("error sending student parameters");
-        return;
-    }
-    memset(response , 0 , sizeof(response));
-    recv_res = recv(client_socket , response , sizeof(response),0);
-    if(recv_res <= 0){
-        perror("Error recieving student response");
-        return;
-    }
-    strcpy(c.name ,response);
-    // sd.name  = response;
-    c.enrolled = 0;
-
-    struct Faculty faculty;
-    
-    printf("lseeek faculty read : %ld ", lseek(faculty_fd, -sizeof(faculty) , SEEK_CUR));
-
-    r = read(faculty_fd , &faculty , sizeof(faculty));
-    printf("read faculty name : %s \n" ,  faculty.name);
-
-    for(int i=0; i < 10 ; i++){
-        printf("current course array corresponding to faculty is %d \n", faculty.courses[i]);
-    }
-
-    for(int i=0; i <10; i++){
-        if(faculty.courses[i] ==0){
-            faculty.courses[i] = c.code;
-             printf("value of courses array for faculty, %d \n", faculty.courses[i]);
-            break;
-        }
-    }
-    
-   
-     printf("lseek : %ld \n" , lseek(faculty_fd, -sizeof(faculty) , SEEK_CUR)) ;
-     printf("course id : %d" , c.code);
-     printf("course_name %s: " , c.name);
-    int sd_write = write(fd , &c , sizeof(c));
-    if(sd_write == -1){
-        perror("error occured adding course data to the file");
-        return;
-    }
-
-     sd_write = write(faculty_fd , &faculty , sizeof(faculty));
-    if(sd_write == -1){
-        perror("error occured adding student data to the file");
-        return;
-    }
-    
-
-    // printf("sd -> %s" , sd.name);
-
-}
-
-void send_faculty_menu(int client_socket ,int faculty_fd){
-        
-while(1){
-
-    char faculty_menu[4096] = "1. View Offered Courses\n"
-    "2 . Add new Course\n"
-    "3 . Remove offered Course\n"
-    "4 . Password Change \n"
-    "5 . Exit\n";
+        int fd = open("courses.txt", O_WRONLY|O_CREAT, 0744);
 
 
-    int send_value = send(client_socket ,faculty_menu , strlen(faculty_menu),0);
-    if(send_value <= 0){
-        printf("enter valid value \n");
-    }
-    else{
-        char choice_buffer[1024];
-        int choice_bytes = recv(client_socket, choice_buffer, sizeof(choice_buffer),0);
-         if(choice_bytes <= 0){
-            printf("enter valid choice \n");
-         }
-         else{
-            // if(atoi(choice_buffer) == 7){
-            //     break;
-            // }
-            printf("choice entered by client: %s\n", choice_buffer);
-            if(atoi(choice_buffer) == 5){
-                break;
+        struct Course cur;
+
+        if(fd==-1){
+                perror("Error while opening course file: ");
                 return;
-            }
-            switch (atoi(choice_buffer))
-            {
-            case 1:
-                printf("view offered courses\n");
-                break;
-            case 2:
-                printf("add new Course\n");
-                addCourse(client_socket , faculty_fd);
-                break;    
-            case 3:
-               
-                printf("Remove course\n");
-                break;
-            case 4:
-                printf("change password called\n");
-                break;
-            // case 6:
-            //     printf("Exit menu");
-
-            //     break;    
-            default:
-                break;
-            }
-            }
+        }
         
+        char bf[1024];
+        strcpy(bf, "Before CS");
+        write(cfd, bf, strlen(bf));
 
         
-
-    }
-  } 
-}
-
-
-
-
-void handle_faculty_auth(int client_socket){
-
-    char username[1024];
-    char password[1024];
-    // printf("enter username");
-    char buf_un[] = "Enter Username: ";
-    send(client_socket , buf_un, strlen(buf_un),0);
-
-    memset(username , 0, sizeof(username));
-    int bytes_read = recv(client_socket, username, sizeof(username),0);
-    if(bytes_read == -1){
-        perror("username read failed in server");
-        return ;
-    }
-
-    char buf_ps[]= "Enter Password : ";
-    send(client_socket ,buf_ps , strlen(buf_ps),0);
-
-    int ps_read = recv(client_socket, password, sizeof(password),0);
-    if(ps_read == -1){
-        perror("read failed in server");
-        return;
-    }
-
-    printf("Entered username : %s \n" , username);
-    printf("Entered password : %s \n" , password);
-
-    int fd = open("faculty_data.txt", O_RDWR);
-    if(fd == -1){
-        perror("Error opening file ");
-        return;
-    }
-        // char buf_student[1024];
-    
-    struct Faculty f;  
-    // int count = 0;
-    int found=0;
-    while(read(fd , &f , sizeof(f)) > 0 ){
-        printf("Looking for username : %s , %s ", f.username , f.password);
-        if(!strcmp(username , f.username) && !strcmp(password , f.password)){
-            found = 1;
-            // faculty = &f;
-            
-            // strcpy(faculty.username , f.username) ;
-            // strcpy(faculty.password , f.password);
-            // strcpy(faculty.name , f.name);
-            // faculty.faculty_id = f.faculty_id;
-            // memset(faculty.courses , 0 , sizeof(faculty.courses));
-            // printf("name of faculty %s" ,);
-            printf("Login Successful \n");
-            
-            send_faculty_menu(client_socket ,fd);
-             break;
+        int fd1 = open("count.txt", O_RDWR, 0744);
+        if(fd1==-1){
+                perror("Error while opening count file: ");
+                return;
         }
 
-    }
-    if(!found){
-        printf("Couldn't Login , Please enter valid credentials");
+
+        char rbuf[1024],wbuf[1024]="Enter name of the course: ";
+
+        int wb = write(cfd, wbuf, strlen(wbuf));
+        if(wb==-1){
+                perror("Error while asking for name: ");
+                return;
+        }
+
+        int rb = read(cfd, rbuf, sizeof(rbuf));
+
+        if(rb==-1){
+                perror("Error while reading name: ");
+                return;
+        }
+        rbuf[rb] = '\0';
+        memset(cur.name, 0, 256);
+        strcpy(cur.name, rbuf);
+
+        strcpy(wbuf, "Enter the total intake of the course: ");
+
+        wb = write(cfd, wbuf, strlen(wbuf));
+        if(wb==-1){
+                perror("Error while asking for intake: ");
+                return;
+        }
+
+        memset(rbuf, 0, sizeof(rbuf));
+
+        rb = read(cfd, rbuf, sizeof(rbuf));
+        rbuf[rb]='\0';
+
+        if(rb==-1){
+                perror("Error while reading intake: ");
+                return;
+        }
+        
+        int intake = atoi(rbuf);
+        cur.intake = intake;
+
+        memset(rbuf, 0, sizeof(rbuf));
+        memset(wbuf, 0, sizeof(wbuf));
+
+
+        strcpy(wbuf, "Enter the branch of the course: ");
+
+        wb = write(cfd, wbuf, strlen(wbuf));
+        if(wb==-1){
+                perror("Error while asking for branch: ");
+                return;
+        }
+
+        memset(rbuf, 0, sizeof(rbuf));
+
+        rb = read(cfd, rbuf, sizeof(rbuf));
+        rbuf[rb]='\0';
+
+        if(rb==-1){
+                perror("Error while reading branch: ");
+                return;
+        }
+
+        memset(cur.branch, 0, 10);
+
+        strcpy(cur.branch, rbuf);
+
+
+
+
+        cur.current = 0;
+        cur.faculty_id = fid;
+        cur.isActive = true;
+        struct flock lock2 = {F_WRLCK, SEEK_SET, 0, 0, getpid()};
+
+        int fs1 = fcntl(fd1, F_SETLKW, &lock2);
+   
+        if(fs1==-1){
+                perror("error while locking the count file");
+        }
+
+        struct Count count;
+
+        rb = read(fd1, &count, sizeof(struct Count));
+        
+        cur.code = count.courses;
+
+        count.courses++;
+
+        int countoffset = lseek(fd1, 0, SEEK_SET);
+
+        if(countoffset==-1){
+                perror("error while seeking to start of count file");
+                return;
+        }
+
+        wb = write(fd1, &count, sizeof(struct Count));
+
+        if(wb == -1){
+                perror("error while writing to count file");
+                return;
+        }
+
+        lock2.l_type = F_UNLCK;
+        fcntl(fd1, F_SETLKW, &lock2);
+        
+        close(fd1);
+
+        // add the course
+        struct flock lock1 = {F_WRLCK, SEEK_SET, 0, 0, getpid()};
+
+        int fs = fcntl(fd, F_SETLKW, &lock1);
+        if(fs==-1){
+                perror("error while locking the courses file");
+        }
+        
+        int l = lseek(fd, 0, SEEK_END);
+
+        if(l==-1){
+                perror("Error while moving file pointer\n");
+                return;
+        }
+
+        wb = write(fd, &cur, sizeof(struct Course));
+        if(wb==-1){
+                perror("Error while writing into file ");
+                return;
+        }
+
+        lock1.l_type = F_UNLCK;
+        fcntl(fd, F_SETLKW, &lock1);
+
+        close(fd);
+
+        int fd2 = open("faculty.txt", O_RDWR, 0744);
+
+        struct Faculty faculty;
+
+        int offset = lseek(fd2, fid*sizeof(struct Faculty), SEEK_SET);
+
+        if(offset==-1){
+                perror("error seeking to the required record");
+                return;
+        }
+
+        struct flock lock3 = {F_WRLCK, SEEK_SET, fid, fid*sizeof(struct Faculty), getpid()};
+        int st = fcntl(fd2, F_SETLKW, &lock3);
+
+        if(st==-1){
+                perror("error attaining write lock on the record");
+                return;
+        }
+
+        rb = read(fd2, &faculty, sizeof(struct Faculty));
+
+        if(rb==-1){
+                perror("error while reading record from the file");
+                return;
+        }
+        
+
+        
+        for(int i=0;i<4;i++){
+                if(faculty.courses[i]==-1){
+                        faculty.courses[i]=cur.code;
+                        break;
+                }
+        }
+
+        offset = lseek(fd2, -sizeof(struct Faculty), SEEK_CUR);
+
+        wb = write(fd2, &faculty, sizeof(struct Faculty));
+        if(wb==-1){
+                perror("error while writing back faculty record");
+        }
+
+
+        lock3.l_type = F_UNLCK;
+        fcntl(fd2, F_SETLKW, &lock3);
+
+        strcpy(wbuf, "Course added successfully\n");
+
+        wb = write(cfd, wbuf, strlen(wbuf));
+        close(fd2);
         return;
-    }
+
 }
+
+
+
+
+void viewCourses(int cfd, int fid){
+        char rbuf[1024],wbuf[4096];
+        memset(rbuf, 0, sizeof(rbuf));
+        memset(wbuf, 0, sizeof(wbuf));
+
+        int fd = open("faculty.txt", O_RDONLY, 0744);
+        if(fd==-1){
+                perror("error opening faculty file: ");
+                return;
+        }
+        struct Faculty faculty;
+        
+        // strcpy(wbuf,"hello\n");
+        // write(cfd, wbuf, strlen(wbuf));
+
+        strcpy(wbuf, "\n****************Offered Course Details****************\n");
+
+        while(read(fd, &faculty, sizeof(struct Faculty))>0){
+                memset(rbuf, 0, sizeof(rbuf));
+                memset(wbuf, 0, sizeof(wbuf));
+                if(faculty.faculty_id==fid){
+                        struct flock lock = {F_RDLCK, SEEK_SET, fid, fid*sizeof(struct Faculty), getpid()};
+                        int st = fcntl(fd, F_SETLKW, &lock);
+                        if(st==-1){
+                                perror("error locking the file in read mode:");
+                                return;
+                        }
+                        
+                        // printf("%s\n",tmpbuf);
+                        strcpy(wbuf, "**************Courses Offered**************\n");
+
+                        for(int i=0;i<4;i++){
+                                char temp[1024];
+                                if(faculty.courses[i]!=-1){
+                                        struct Course c = getCourseDetails(faculty.courses[i]);
+                                        // printf("cname: %s\n",c.name);
+                                        if(c.isActive){
+                                                sprintf(temp, "\nCourse Name: %s\nCourse Code: %d\nCourse Branch: %s\nFaculty Id: %d\nStudents Enrolled: %d\nIntake: %d\n", c.name,c.code,c.branch,c.faculty_id,c.current,c.intake);
+                                                if(c.isActive){
+                                                        strcat(temp, "Active: Yes\n");
+                                                }
+                                                else strcat(temp, "Active: No\n");
+                                                
+                                                strcat(wbuf, temp);
+                                        }
+                                }
+                        }
+
+                        int wb = write(cfd, wbuf, strlen(wbuf));
+                        if(wb==-1){
+                                perror("error while writing to socket");
+                                return;
+                        }
+
+                        lock.l_type = F_UNLCK;
+                        st = fcntl(fd, F_SETLK, &lock);
+
+                        if(st==-1){
+                                perror("Error while removing read lock from record");
+                        }
+
+                        // printf("wbuf: %s\n",wbuf);
+                        
+                        return;
+                }
+
+        }
+
+        memset(rbuf, 0, sizeof(rbuf));
+        memset(wbuf, 0, sizeof(wbuf));
+
+        strcpy(wbuf, "faculty with corresponding id does not exist");
+
+        int wb = write(cfd, wbuf, strlen(wbuf));
+
+}
+
+
+bool removeCourse(int cfd){
+        char rbuf[1024],wbuf[4096];
+        
+        memset(rbuf, 0, sizeof(rbuf));
+        memset(wbuf, 0, sizeof(wbuf));
+
+        strcpy(wbuf, "Enter the id of the course you want to remove: ");
+        int wb = write(cfd, wbuf, strlen(wbuf));
+        if(wb==-1){
+                perror("error while writing to client");
+                return false;
+        }
+
+        int rb = read(cfd, rbuf, sizeof(rbuf));
+        
+        if(rb==-1){
+                perror("error while reading from socket");
+                return false;
+        }
+        rbuf[rb]='\0';
+
+        int id = atoi(rbuf);
+
+        int fd = open("courses.txt", O_RDWR);
+        if(fd==-1){
+                perror("error while opening courses file");
+                close(fd);
+                return false;
+        }
+
+        int offset = lseek(fd, id*sizeof(struct Course), SEEK_SET);
+
+        if(offset==-1){
+                return false;
+        }
+
+
+        struct Course course;
+
+        struct flock lock = {F_WRLCK, SEEK_CUR, 0, sizeof(struct Course), getpid()};
+        int fs = fcntl(fd, F_SETLKW, &lock);
+
+        if(fs==-1){
+                perror("error while attaining write lock on course record");
+                close(fd);
+                return false;
+        }
+
+        rb = read(fd, &course, sizeof(struct Course));
+
+        course.isActive = false;
+
+        offset = lseek(fd, id*sizeof(struct Course), SEEK_SET);
+
+        wb = write(fd, &course, sizeof(struct Course));
+
+        lock.l_type = F_UNLCK;
+        fs = fcntl(fd, F_SETLKW, &lock);
+        if(fs==-1){
+                perror("error while removing write lock from course record");
+                close(fd);
+                return false;
+        }
+
+        close(fd);
+
+        return true;
+
+}
+
+
+
+
+bool changePasswordFac(int cfd){
+        char rbuf[1024],wbuf[4096];
+        
+        memset(rbuf, 0, sizeof(rbuf));
+        memset(wbuf, 0, sizeof(wbuf));
+
+        strcpy(wbuf, "Enter new password: ");
+        int wb = write(cfd, wbuf, strlen(wbuf));
+        if(wb==-1){
+                perror("error while writing to client");
+                return false;
+        }
+
+        int rb = read(cfd, rbuf, sizeof(rbuf));
+        if(rb==-1){
+                perror("error while reading from client");
+                return false;
+        }
+
+        rbuf[rb]='\0';
+
+        int fd = open("faculty.txt", O_RDWR);
+        if(fd==-1){
+                perror("Error while opening faculty file");
+                // close(fd);
+                return false;
+        }
+
+        struct Faculty faculty;
+
+        int offset = lseek(fd, f.faculty_id*sizeof(struct Faculty), SEEK_SET);
+        if(offset==-1){
+                perror("error while seeking to the required record");
+                close(fd);
+                return false;
+        }
+
+        rb = read(fd, &faculty, sizeof(struct Faculty));
+
+        if(rb==-1){
+                perror("error while reading the faculty record");
+                close(fd);
+                return false;
+        }
+
+        memset(faculty.password, 0, 50);
+        strcpy(faculty.password, rbuf);
+
+        offset = lseek(fd, f.faculty_id*sizeof(struct Faculty), SEEK_SET);
+        if(offset==-1){
+                perror("error while seeking to start of record");
+                close(fd);
+                return false;
+        }
+
+        wb = write(fd, &faculty, sizeof(struct Faculty));
+
+        if(wb==-1){
+                perror("Error while writing the modified record to file");
+                close(fd);
+                return false;
+        }
+
+        memset(wbuf, 0, sizeof(wbuf));
+        strcpy(wbuf, "Password changed successfully!\n");
+        wb = write(cfd, wbuf, strlen(wbuf));
+        if(wb==-1){
+                perror("Error while writing to client");
+                close(fd);
+                return false;
+        }
+
+        close(fd);
+        return true;
+        
+}
+
+
+
+void facultyMenu(int cfd){
+	bool login = facultyLogin(cfd, &f);
+	if(!login){
+		// send message to client about invalid login
+		char buf[100] = "Invalid username or password\n";
+		int wb = write(cfd, buf, strlen(buf));
+		return;
+	}
+        char buf[100] = "Successfully logged in!\n";
+        int wb = write(cfd, buf, strlen(buf));
+	// display faculty menu
+	
+        while(1){
+
+                char menu[4096] = "....................................Welcome to Faculty Menu....................................\n"
+                                "1. View Offering Courses\n"
+                                "2. Add New Course\n"
+                                "3. Remove Course from Catalog\n"
+                                "4. Update Course Details\n"
+                                "5. Change Password\n"
+                                "6. Logout and Exit\n\n"
+                                "Enter your choice: ";
+
+                wb = write(cfd, menu, strlen(menu));
+
+                if(wb==-1){
+                        perror("Error while displaying menu: ");
+                        return;
+                }
+                
+                char chbf[1024];
+                int rb = read(cfd, chbf, sizeof(chbf));
+                if(rb==-1){
+                        perror("Error while reading choice: ");
+                        return;
+                }
+
+
+                int choice = atoi(chbf);
+
+                switch(choice){
+                        case 1:
+                        {
+                                // printf("id: %d\n",f.faculty_id);
+                                viewCourses(cfd, f.faculty_id);
+                                break;
+                        }
+                        case 2:
+                        {
+
+                                addCourse(cfd, f.faculty_id);
+                                // char code[50];
+                                // printf("Enter the course code: ");
+                                // scanf(" %[^\n]s",code);
+                                // enroll(s->rollno, code);
+                                break;
+                        }
+                        case 3:
+                        {
+                                bool removed = removeCourse(cfd);
+                                 
+                                char bf[100];
+                                if(!removed){
+                                        strcpy(bf, "Course couldn't be removed\n");
+                                        wb = write(cfd, bf, strlen(bf));
+                                        if(wb==-1){
+                                                perror("error while writing to socket");
+                                        }
+                                }
+                                else{
+                                strcpy(bf, "Course removed Successfully!\n");
+                                wb = write(cfd, bf, strlen(bf));
+                                        if(wb==-1){
+                                                perror("error while writing to socket");
+                                        } 
+                                }
+
+                                break;
+                        }
+                        case 4:
+                        {
+                                break;
+                        }
+                        case 5:
+                        {
+                                bool changed = changePasswordFac(cfd);
+                                if(!changed){
+                                        char buf[100]="Unable to change password!";
+                                        wb = write(cfd, buf, strlen(buf));
+                                }
+                                break;
+                        }
+                        case 6:
+                        {
+                                return;
+                        }
+                        default:
+                        {
+                                // printf("Enter a valid choice!\n");
+                                break;
+                        }
+                }
+        }
+
+
+
+}
+
+

@@ -1,71 +1,104 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <string.h>
 
-int main(int argc , char* argv[]) {
-    int client_socket;
-    struct sockaddr_in server_address;
+void conn(int sockFD);
 
-    // Create a socket
-    client_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (client_socket == -1) {
-        perror("Error creating client socket");
-        exit(EXIT_FAILURE);
+void main()
+{
+    int socketFileDescriptor, connectStatus;
+    struct sockaddr_in serverAddress;
+    struct sockaddr server;
+
+    socketFileDescriptor = socket(AF_INET, SOCK_STREAM, 0);
+    if (socketFileDescriptor == -1)
+    {
+        perror("Error while creating server socket!");
+        _exit(0);
     }
 
-    // Set up server address
-    memset(&server_address, 0, sizeof(server_address));
-    server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(atoi(argv[1])); // Port number
-    server_address.sin_addr.s_addr = INADDR_ANY; // Replace with the actual IP of Machine 1
+    printf("Enter the port number: ");
+    int port;
+    scanf("%d",&port);
 
-    // Connect to the server
-    if (connect(client_socket, (struct sockaddr*)&server_address, sizeof(server_address)) == -1) {
-        perror("Error connecting to the server");
-        close(client_socket);
-        exit(EXIT_FAILURE); 
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(port);           
+    serverAddress.sin_addr.s_addr = htons(INADDR_ANY);
+
+    connectStatus = connect(socketFileDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+    if (connectStatus == -1)
+    {
+        perror("Error while connecting to server!");
+        close(socketFileDescriptor);
+        _exit(0);
     }
 
-    printf("Connected to server\n");
-    char message[4096];
-    while (1) {
-        
-        // bzero(message, 4096);
-        memset(message, 0, sizeof(message));
-        ssize_t bytes_received;
+    conn(socketFileDescriptor);
 
-        // Receive the server's response
-        bytes_received = recv(client_socket, message, sizeof(message),0);
-        if (bytes_received <= 0) {
-            break; // Connection closed by the server
-        }
-
-        // message[bytes_received] = '\0';
-        printf("Server: %s", message);
-    
-
-        // char message[1024];
-        // printf("");
-        // char choice;
-        memset(message, 0, sizeof(message));
-         
-        scanf(" %[^\n]" ,message);
-        // (message, sizeof(message), stdin);
-       
-        // Send the message to the server
-        send(client_socket, message, strlen(message),0);
-
-        // if (strcmp(message, "exit\n") == 0) {
-        //     break;
-        // }
-
-    }
-
-    // Close the socket
-    // printf()
-    close(client_socket);
-
-    return 0;
+    close(socketFileDescriptor);
 }
+
+
+void conn(int sockFD)
+{
+    char readBuffer[1000], writeBuffer[1000];
+    ssize_t readBytes, writeBytes;
+
+    char tempBuffer[1000];
+
+    
+    while(1){
+        bzero(readBuffer, 1000);
+        // bzero(tempBuffer, sizeof(tempBuffer));
+        readBytes = read(sockFD, readBuffer, sizeof(readBuffer));
+        // if(readBytes==0)break;
+		// printf("read bytes: %ld\n",readBytes);
+		// printf("rbuf: %s\n",readBuffer);
+        if(strcmp(readBuffer, "Invalid Choice!\n")==0)break;
+
+        else if (readBytes == -1)
+            perror("Error while reading from client socket!");
+        else if (readBytes == 0)
+            printf("No error received from server! Closing the connection to the server now!\n");
+        
+        else
+        {
+            bzero(writeBuffer, 1000); // Empty the write buffer
+
+			// printf("%s\n", readBuffer);
+            write(1, readBuffer, sizeof(readBuffer));
+            int i=0;
+            while(1){
+                char c;
+                // fflush(stdin);
+                read(0, &c, 1);
+                if(c=='\n')break;
+                writeBuffer[i]=c;
+                i++;
+            }
+
+            writeBuffer[i]='\0';
+            
+
+            writeBytes = write(sockFD, writeBuffer, strlen(writeBuffer));
+
+            if (writeBytes == -1)
+            {
+                perror("Error while writing to client socket!");
+                printf("Closing the connection to the server now!\n");
+                break;
+            }
+        }
+    }
+
+    close(sockFD);
+
+}
+
+

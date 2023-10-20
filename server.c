@@ -1,152 +1,137 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <errno.h>
+
+#include <fcntl.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-#include "admin.h"
-#include "faculty.h"
+#include <sys/socket.h>
+#include <netinet/ip.h>
+
+#include <string.h> 
+#include <stdbool.h> 
+#include <stdlib.h> 
+
+#include "auth.h"
 #include "student.h"
-// int port = 8000;
-#define MAX_CLIENTS 10
+#include "faculty.h"
+#include "admin.h"
 
+void conn(int connFD);
 
-void handle_admin(int client_socket){
-    char username[4096];
-    char password[4096];
-    // printf("enter username");
-    char buf_un[] = "Enter Username: ";
-    send(client_socket , buf_un, strlen(buf_un),0);
+void main()
+{
+    int socketFileDescriptor, socketBindStatus, socketListenStatus, connectionFileDescriptor;
+    struct sockaddr_in serverAddress, clientAddress;
 
-    int bytes_read = recv(client_socket, username, sizeof(username),0);
-    if(bytes_read == -1){
-        perror("username read failed in server");
+    socketFileDescriptor = socket(AF_INET, SOCK_STREAM, 0);
+    if (socketFileDescriptor == -1)
+    {
+        perror("Error while creating server socket!");
+        _exit(0);
     }
 
-    char buf_ps[]= "Enter Password : ";
-    send(client_socket ,buf_ps , strlen(buf_ps),0);
+    printf("Enter the port number: ");
+    int port;
+    scanf("%d",&port);
 
-    int ps_read = recv(client_socket, password, sizeof(password),0);
-    if(ps_read == -1){
-        perror("read failed in server");
-    }
-    // printf("\nusername: %ld\n",strlen(username));
-    if(!strcmp(username , "Harsh") && !strcmp(password , "Harsh123")){
-        printf("Welcome admin , %s \n" , username);
-        send_menu(client_socket);
-    }
-    else{
-        printf("Entered username and password are not correct \n" );
-    }
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(port);
+    serverAddress.sin_addr.s_addr = htons(INADDR_ANY); 
 
-    
-    
-
-}
-
-
-void handle_client(int client_socket) {
-    // Handle the client connection here
-    // You can read and write data from/to the client socket
-    // Example: echo back received data
-    // while(1){
-    char buffer[1024];
-    ssize_t bytes_received;
-    char login_roles[4096] = "<--------------------welcome to Academia :: Best platform for course registration ------------------------->\n"
-    "Login as :\n"
-    "Enter your choice : [1 : Admin , 2 : Faculty, 3 : Student] \n";
-
-    
-
-    send(client_socket, login_roles, strlen(login_roles) , 0);
-
-    // char cho ice[2];
-    // while(1){
-         int choice_bytes = recv(client_socket, &buffer, sizeof(buffer),0);
-         if(choice_bytes <= 0){
-            printf("enter valid choice");
-         }
-        printf("choice entered by client: %s\n", buffer);
-        
-        // if(atoi(buffer) == 4){
-        //     break;
-        //     return;
-        // }
-
-        // Echo the data back to the client
-        // send(client_socket, buffer, bytes_received, 0);
-    // }
-
-    switch(atoi(buffer)){
-    case 1: printf("inplementation of Admin");
-        handle_admin(client_socket);
-        break;
-    case 2: printf("inplementation of Faculty");
-        handle_faculty_auth(client_socket);
-        break;
-    case 3: printf("inplementation of Student");
-        handle_student_auth(client_socket);
-        break;
-    default : printf("Entered choice is invalid");
+    socketBindStatus = bind(socketFileDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+    if (socketBindStatus == -1)
+    {
+        perror("Error while binding to server socket!");
+        _exit(0);
     }
 
-
-    close(client_socket);
-    // }
-  
-}
-
-// void get_login(){
-
-// }
-
-
-
-int main(int argc , char* argv[]) {
-    int server_socket, client_socket, addr_len;
-    struct sockaddr_in server_addr, client_addr;
-
-    if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        perror("Server socket creation failed");
-        exit(1);
+    socketListenStatus = listen(socketFileDescriptor, 10);
+    if (socketListenStatus == -1)
+    {
+        perror("Error while listening for connections on the server socket!");
+        close(socketFileDescriptor);
+        _exit(0);
     }
 
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(atoi(argv[1]));
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-
-    if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
-        perror("Bind failed");
-        exit(1);
-    }
-
-    if (listen(server_socket, MAX_CLIENTS) == -1) {
-        perror("Listen failed");
-        exit(1);
-    }
-
-    printf("Server listening on port %d...\n", atoi(argv[1]));
-
-    while (1) {
-        addr_len = sizeof(struct sockaddr_in);
-        if ((client_socket = accept(server_socket, (struct sockaddr *)&client_addr, (socklen_t *)&addr_len)) == -1) {
-            perror("Accept failed");
-            continue;
+    int clientSize;
+    while (1)
+    {
+        clientSize = (int)sizeof(clientAddress);
+        connectionFileDescriptor = accept(socketFileDescriptor, (struct sockaddr *)&clientAddress, &clientSize);
+        if (connectionFileDescriptor == -1)
+        {
+            perror("Error while connecting to client!");
+            close(socketFileDescriptor);
         }
-
-        if (fork() == 0) {  // Child process
-            close(server_socket);  // Child doesn't need the listening socket
-            handle_client(client_socket);
-            exit(0);
-        } else {
-            close(client_socket);  // Parent doesn't need the client socket
+        else
+        {
+            if (!fork())
+            {
+                // Child will enter this branch
+                conn(connectionFileDescriptor);
+                close(connectionFileDescriptor);
+                // _exit(0);
+                break;
+            }
+			
         }
     }
 
-    close(server_socket);
-
-    return 0;
+    close(socketFileDescriptor);
 }
 
+void conn(int cfd)
+{
+    printf("Client has connected to the server!\n");
+
+    bool flag=0;
+    while(1){
+        char readBuffer[1000], writeBuffer[1000];
+        ssize_t readBytes, writeBytes;
+        int userChoice;
+
+        strcpy(writeBuffer, "....................................Welcome Back to Academia :: Course Registration....................................\n\nEnter your role {1. Faculty 2. Student 3. Admin 4. Exit}\n");
+
+        writeBytes = write(cfd, writeBuffer, strlen(writeBuffer));
+
+        if (writeBytes == -1)
+            perror("Error while sending first prompt to the user!");
+        else
+        {
+            bzero(readBuffer, 1000);
+            readBytes = read(cfd, readBuffer, sizeof(readBuffer));
+
+            
+
+            if (readBytes == -1)
+                perror("Error while reading from client");
+            else if (readBytes == 0)
+                printf("No data was sent by the client");
+            else
+            {
+                userChoice = atoi(readBuffer);
+                printf("%d\n",userChoice);
+                switch (userChoice)
+                {
+                case 1:
+                    facultyMenu(cfd);
+                    break;
+                case 2:
+                    studentMenu(cfd);
+                    break;
+                case 3:
+                    adminMenu(cfd);
+                    break;
+                default:
+                    memset(writeBuffer, 0, sizeof(writeBuffer));
+                    strcpy(writeBuffer, "Invalid Choice!\n");
+                    write(cfd, writeBuffer, strlen(writeBuffer));
+                    flag=1;
+                    break;
+                }
+            }
+        }
+        if(flag)break;
+    }
+    printf("Terminating connection to client!\n");
+}
